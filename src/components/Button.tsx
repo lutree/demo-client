@@ -20,17 +20,10 @@ export default function Button({
             type={type}
             onClick={onClick}
             disabled={disabled}
-            style={{
-                padding: '10px 16px',
-                backgroundColor: disabled ? '#ccc' : '#0070f3',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: disabled ? 'not-allowed' : 'pointer',
-                fontWeight: 500,
-                fontSize: '1rem',
-                marginTop: '8px'
-            }}
+            className={`h-10 px-4 rounded font-medium text-base align-middle
+        ${disabled
+                ? 'bg-neutral-700 text-gray-400 cursor-not-allowed'
+                : 'bg-blue-600 text-white hover:bg-blue-500 cursor-pointer'}`}
         >
             {children}
         </button>

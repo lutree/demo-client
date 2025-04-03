@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import InputField from '@/components/InputField'
 import ErrorMessage from '@/components/ErrorMessage'
 import Button from '@/components/Button'
+import Modal from '@/components/Modal'
 
 export default function LoginPage() {
     const router = useRouter()
@@ -13,6 +14,7 @@ export default function LoginPage() {
         loginPwd: ''
     })
     const [error, setError] = useState('')
+    const [showModal, setShowModal] = useState(false)
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target
@@ -39,11 +41,12 @@ export default function LoginPage() {
             if (result.status === 'SUCCESS') {
                 // 추후: 토큰 저장, 리다이렉트 등
                 console.log('로그인 성공!', result.data)
-                alert('로그인 성공!')
+                setShowModal(true)
                 // router.push('/dashboard') // 예시
             } else {
                 setError(result.message || '로그인에 실패했습니다.')
             }
+
         } catch (err) {
             console.error(err)
             setError('서버와 연결할 수 없습니다.')
@@ -52,7 +55,7 @@ export default function LoginPage() {
 
     return (
         <div className="p-6 max-w-md mx-auto">
-            <h1 className="text-2xl font-bold mb-4">로그인</h1>
+            <h1 className="text-2xl font-bold mb-6 text-center">로그인</h1>
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxWidth: '400px', margin: '0 auto' }}>
                 <InputField name="loginId" placeholder="아이디" value={form.loginId} onChange={handleChange} required />
                 <InputField name="loginPwd" type="password" placeholder="비밀번호" value={form.loginPwd} onChange={handleChange} required />

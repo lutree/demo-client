@@ -6,6 +6,8 @@ interface ErrorMessageProps {
 
 export default function ErrorMessage({ message }: ErrorMessageProps) {
     return (
-        <label style={{ color: 'red', fontSize: '0.875rem' }}>{message}</label>
+        <p className="text-red-400 text-sm mt-1">
+            {message}
+        </p>
     )
 }

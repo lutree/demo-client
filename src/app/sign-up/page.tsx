@@ -1,11 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import InputField from '@/components/InputField'
-// import RadioGroup from '@/components/RadioGroup'
+//import RadioGroup from '@/components/RadioGroup'
 import ErrorMessage from '@/components/ErrorMessage'
 import Button from '@/components/Button'
+import SpinnerOverlay from '@/components/SpinnerOverlay'
+import Modal from '@/components/Modal'
 import { BASE_API_URL } from '@/lib/api'
 
 export default function SignUpPage() {
@@ -16,21 +18,34 @@ export default function SignUpPage() {
         loginPwd: '',
         loginPwdConfirm: '',
         userNm: '',
-        // userNknm: '',
-        // gndrCd: '',
-        // bhdt: '',
-        // userCno: '',
+        userNknm: '',
+        gndrCd: '',
+        bhdt: '',
+        userCno: '',
         userEmail: ''
     })
 
     const [error, setError] = useState('')
+    const [passwordMismatch, setPasswordMismatch] = useState(false)
     const [emailSent, setEmailSent] = useState(false)
     const [authCode, setAuthCode] = useState('')
     const [isVerified, setIsVerified] = useState(false)
+    const [isSendingEmail, setIsSendingEmail] = useState(false)
+    const [infoModal, setInfoModal] = useState<{ open: boolean; title: string; message: string; onClose?: () => void }>({
+        open: false,
+        title: '',
+        message: ''
+    })
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target
-        setForm(prev => ({ ...prev, [name]: value }))
+        setForm(prev => {
+            const updated = { ...prev, [name]: value }
+            if (name === 'loginPwd' || name === 'loginPwdConfirm') {
+                setPasswordMismatch(updated.loginPwd !== updated.loginPwdConfirm)
+            }
+            return updated
+        })
     }
 
     const handleEmailAuth = async () => {
@@ -38,6 +53,8 @@ export default function SignUpPage() {
             setError('이메일을 입력해주세요.')
             return
         }
+
+        setIsSendingEmail(true)
 
         try {
             const res = await fetch(`${BASE_API_URL}/sign/send-auth-email`, {
@@ -51,7 +68,11 @@ export default function SignUpPage() {
             const result = await res.json()
 
             if (result.status === 'SUCCESS') {
-                alert('인증 이메일이 전송되었습니다.')
+                setInfoModal({
+                    open: true,
+                    title: '인증 메일 발송',
+                    message: '입력한 이메일 주소로 인증 메일이 전송되었습니다.'
+                })
                 setEmailSent(true)
                 setError('')
             } else {
@@ -60,10 +81,11 @@ export default function SignUpPage() {
         } catch (err) {
             console.error(err)
             setError('서버와 연결할 수 없습니다.')
+        } finally {
+            setIsSendingEmail(false)
         }
     }
 
-    // 인증코드 확인 핸들러
     const handleVerifyAuthCode = async () => {
         if (!authCode || !form.userEmail) {
             setError('이메일과 인증코드를 입력해주세요.')
@@ -84,8 +106,12 @@ export default function SignUpPage() {
 
             const result = await res.json()
 
-            if (result.status === 'SUCCESS' && result.data.isVerified) {
-                alert('이메일 인증이 완료되었습니다.')
+            if (result.status === 'SUCCESS' && result.data?.isVerified) {
+                setInfoModal({
+                    open: true,
+                    title: '이메일 인증 완료',
+                    message: '이메일 인증이 성공적으로 완료되었습니다.'
+                })
                 setIsVerified(true)
                 setError('')
             } else {
@@ -100,6 +126,11 @@ export default function SignUpPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
+        if (!isVerified) {
+            setError('이메일 인증을 완료해주세요.')
+            return
+        }
+
         if (form.loginPwd !== form.loginPwdConfirm) {
             setError('비밀번호가 일치하지 않습니다.')
             return
@@ -109,10 +140,10 @@ export default function SignUpPage() {
             loginId: form.loginId,
             loginPwd: form.loginPwd,
             userNm: form.userNm,
-            // userNknm: form.userNknm,
-            // bhdt: form.bhdt,
-            // gndrCd: form.gndrCd,
-            // userCno: form.userCno,
+            userNknm: form.userNknm,
+            bhdt: form.bhdt,
+            gndrCd: form.gndrCd,
+            userCno: form.userCno,
             userEmail: form.userEmail,
             userCi: 'string'
         }
@@ -129,8 +160,12 @@ export default function SignUpPage() {
             const result = await res.json()
 
             if (result.status === 'SUCCESS') {
-                alert('회원가입이 완료되었습니다.')
-                router.push('/login')
+                setInfoModal({
+                    open: true,
+                    title: '회원가입 완료',
+                    message: '가입이 성공적으로 완료되었습니다. 로그인 페이지로 이동합니다.',
+                    onClose: () => router.push('/login')
+                })
             } else {
                 setError(result.message || '회원가입에 실패했습니다.')
             }
@@ -140,59 +175,92 @@ export default function SignUpPage() {
         }
     }
 
+    const isFormValid =
+        form.loginId.trim() !== '' &&
+        form.loginPwd.trim() !== '' &&
+        form.loginPwdConfirm.trim() !== '' &&
+        form.loginPwd === form.loginPwdConfirm &&
+        form.userNm.trim() !== '' &&
+        form.userEmail.trim() !== '' &&
+        isVerified
+
     return (
-        <div className="p-6 max-w-md mx-auto">
+        <div className="p-6 max-w-md mx-auto relative">
             <h1 className="text-2xl font-bold mb-6 text-center">회원가입</h1>
             <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-                {/* 로그인 정보 구역 */}
+                {/* 🔐 로그인 정보 */}
                 <section>
                     <h2 className="text-lg font-semibold mb-2 border-b pb-1">로그인 정보</h2>
                     <div className="flex flex-col gap-2 mt-2">
                         <InputField name="loginId" placeholder="아이디" value={form.loginId} onChange={handleChange} required />
                         <InputField name="loginPwd" type="password" placeholder="비밀번호" value={form.loginPwd} onChange={handleChange} required />
                         <InputField name="loginPwdConfirm" type="password" placeholder="비밀번호 확인" value={form.loginPwdConfirm} onChange={handleChange} required />
+                        {passwordMismatch && <ErrorMessage message="비밀번호가 일치하지 않습니다." />}
                     </div>
                 </section>
 
-                {/* 회원 정보 구역 */}
+                {/* 👤 회원 정보 */}
                 <section>
                     <h2 className="text-lg font-semibold mb-2 border-b pb-1">회원 정보</h2>
                     <div className="flex flex-col gap-2 mt-2">
                         <InputField name="userNm" placeholder="이름" value={form.userNm} onChange={handleChange} required />
 
-                        {/* 이메일 입력 + 인증버튼 */}
-                        <div className="flex gap-2">
-                            <input
-                                name="userEmail"
-                                placeholder="이메일"
-                                value={form.userEmail}
-                                onChange={handleChange}
-                                required
-                                className="flex-1 px-3 py-2 border border-gray-300 rounded"
-                                disabled={isVerified}
-                            />
-                            <Button type="button" onClick={handleEmailAuth} disabled={isVerified}>인증</Button>
+                        {/* 이메일 인증 */}
+                        <div className="flex gap-2 items-center">
+                            <div className="flex-1 flex items-center">
+                                <InputField
+                                    name="userEmail"
+                                    placeholder="이메일"
+                                    value={form.userEmail}
+                                    onChange={handleChange}
+                                    required
+                                    disabled={isVerified}
+                                />
+                            </div>
+                            <div className="flex items-center h-10">
+                                <Button type="button" onClick={handleEmailAuth} disabled={isVerified || isSendingEmail}>
+                                    인증
+                                </Button>
+                            </div>
                         </div>
 
-                        {/* 인증번호 입력 + 확인 버튼 */}
+                        {/* 인증번호 입력 */}
                         {emailSent && !isVerified && (
-                            <div className="flex gap-2">
-                                <input
-                                    name="authCode"
-                                    placeholder="인증번호 입력"
-                                    value={authCode}
-                                    onChange={(e) => setAuthCode(e.target.value)}
-                                    className="flex-1 px-3 py-2 border border-gray-300 rounded"
-                                />
-                                <Button type="button" onClick={handleVerifyAuthCode}>확인</Button>
+                            <div className="flex gap-2 items-center">
+                                <div className="flex-1 flex items-center">
+                                    <InputField
+                                        name="authCode"
+                                        placeholder="인증번호 입력"
+                                        value={authCode}
+                                        onChange={(e) => setAuthCode(e.target.value)}
+                                    />
+                                </div>
+                                <div className="flex items-center h-10">
+                                    <Button type="button" onClick={handleVerifyAuthCode}>
+                                        확인
+                                    </Button>
+                                </div>
                             </div>
                         )}
                     </div>
                 </section>
 
                 {error && <ErrorMessage message={error} />}
-                <Button type="submit">회원가입</Button>
+                <Button type="submit" disabled={!isFormValid}>회원가입</Button>
             </form>
+
+            {isSendingEmail && <SpinnerOverlay />}
+
+            {/* 통합 모달 */}
+            <Modal
+                isOpen={infoModal.open}
+                title={infoModal.title}
+                message={infoModal.message}
+                onClose={() => {
+                    setInfoModal({ open: false, title: '', message: '' })
+                    infoModal.onClose?.()
+                }}
+            />
         </div>
     )
 }
