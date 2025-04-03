@@ -6,6 +6,7 @@ import InputField from '@/components/InputField'
 import ErrorMessage from '@/components/ErrorMessage'
 import Button from '@/components/Button'
 import Modal from '@/components/Modal'
+import {BASE_API_URL} from "@/lib/api";
 
 export default function LoginPage() {
     const router = useRouter()
@@ -14,7 +15,11 @@ export default function LoginPage() {
         loginPwd: ''
     })
     const [error, setError] = useState('')
-    const [showModal, setShowModal] = useState(false)
+    const [infoModal, setInfoModal] = useState<{ open: boolean; title: string; message: string; onClose?: () => void }>({
+        open: false,
+        title: '',
+        message: ''
+    })
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target
@@ -25,7 +30,7 @@ export default function LoginPage() {
         e.preventDefault()
 
         try {
-            const res = await fetch('http://localhost:8080/sign/login', {
+            const res = await fetch(`${BASE_API_URL}/sign/sign-in`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json;charset=UTF-8'
@@ -39,14 +44,14 @@ export default function LoginPage() {
             const result = await res.json()
 
             if (result.status === 'SUCCESS') {
-                // 추후: 토큰 저장, 리다이렉트 등
-                console.log('로그인 성공!', result.data)
-                setShowModal(true)
-                // router.push('/dashboard') // 예시
+                setInfoModal({
+                    open: true,
+                    title: '로그인 성공',
+                    message: '환영합니다! 이제 서비스를 이용하실 수 있습니다.'
+                })
             } else {
                 setError(result.message || '로그인에 실패했습니다.')
             }
-
         } catch (err) {
             console.error(err)
             setError('서버와 연결할 수 없습니다.')
@@ -66,11 +71,21 @@ export default function LoginPage() {
                     <button type="button" onClick={() => router.push('/sign-up')} style={{ background: 'none', border: 'none', color: '#0070f3', cursor: 'pointer' }}>
                         회원가입
                     </button>
-                    <button type="button" onClick={() => alert('비밀번호 찾기는 추후 구현 예정입니다.')} style={{ background: 'none', border: 'none', color: '#0070f3', cursor: 'pointer' }}>
+                    <button type="button" onClick={() => setInfoModal({ open: true, title: '안내', message: '비밀번호 찾기는 추후 구현 예정입니다.' })} style={{ background: 'none', border: 'none', color: '#0070f3', cursor: 'pointer' }}>
                         비밀번호 찾기
                     </button>
                 </div>
             </form>
+
+            <Modal
+                isOpen={infoModal.open}
+                title={infoModal.title}
+                message={infoModal.message}
+                onClose={() => {
+                    setInfoModal({ open: false, title: '', message: '' })
+                    infoModal.onClose?.()
+                }}
+            />
         </div>
     )
 }
