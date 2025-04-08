@@ -7,6 +7,7 @@ import ErrorMessage from '@/components/ErrorMessage'
 import Button from '@/components/Button'
 import Modal from '@/components/Modal'
 import {BASE_API_URL} from "@/lib/api";
+import {hashSHA256} from "@/lib/hash";
 
 export default function LoginPage() {
     const router = useRouter()
@@ -30,6 +31,7 @@ export default function LoginPage() {
         e.preventDefault()
 
         try {
+            const hashedPwd = await hashSHA256(form.loginPwd)
             const res = await fetch(`${BASE_API_URL}/sign/sign-in`, {
                 method: 'POST',
                 headers: {
@@ -37,7 +39,7 @@ export default function LoginPage() {
                 },
                 body: JSON.stringify({
                     loginId: form.loginId,
-                    loginPwd: form.loginPwd
+                    loginPwd: hashedPwd
                 })
             })
 

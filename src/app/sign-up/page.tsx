@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import InputField from '@/components/InputField'
 //import RadioGroup from '@/components/RadioGroup'
@@ -9,6 +9,7 @@ import Button from '@/components/Button'
 import SpinnerOverlay from '@/components/SpinnerOverlay'
 import Modal from '@/components/Modal'
 import { BASE_API_URL } from '@/lib/api'
+import { hashSHA256 } from '@/lib/hash'
 
 export default function SignUpPage() {
     const router = useRouter()
@@ -19,10 +20,11 @@ export default function SignUpPage() {
         loginPwdConfirm: '',
         userNm: '',
         userNknm: '',
-        gndrCd: '',
-        bhdt: '',
-        userCno: '',
-        userEmail: ''
+        // gndrCd: '',
+        // bhdt: '',
+        // userCno: '',
+        userEmail: '',
+        // userCi: ''
     })
 
     const [error, setError] = useState('')
@@ -36,6 +38,24 @@ export default function SignUpPage() {
         title: '',
         message: ''
     })
+    const [timer, setTimer] = useState(0)
+
+    useEffect(() => {
+        if (!emailSent || isVerified || timer <= 0) return
+        const countdown = setInterval(() => {
+            setTimer(prev => {
+                if (prev <= 1) clearInterval(countdown)
+                return prev - 1
+            })
+        }, 1000)
+        return () => clearInterval(countdown)
+    }, [emailSent, isVerified, timer])
+
+    const formatTimer = (seconds: number) => {
+        const m = Math.floor(seconds / 60).toString().padStart(2, '0')
+        const s = (seconds % 60).toString().padStart(2, '0')
+        return `${m}:${s}`
+    }
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target
@@ -74,6 +94,7 @@ export default function SignUpPage() {
                     message: '입력한 이메일 주소로 인증 메일이 전송되었습니다.'
                 })
                 setEmailSent(true)
+                setTimer(60*3) // 3분
                 setError('')
             } else {
                 setError(result.message || '이메일 전송에 실패했습니다.')
@@ -113,6 +134,7 @@ export default function SignUpPage() {
                     message: '이메일 인증이 성공적으로 완료되었습니다.'
                 })
                 setIsVerified(true)
+                setTimer(0)
                 setError('')
             } else {
                 setError(result.message || '인증번호가 올바르지 않습니다.')
@@ -136,16 +158,19 @@ export default function SignUpPage() {
             return
         }
 
+        const hashedPwd = await hashSHA256(form.loginPwd)
+        alert(hashedPwd)
+
         const payload = {
             loginId: form.loginId,
-            loginPwd: form.loginPwd,
+            loginPwd: hashedPwd,
             userNm: form.userNm,
             userNknm: form.userNknm,
-            bhdt: form.bhdt,
-            gndrCd: form.gndrCd,
-            userCno: form.userCno,
+            // gndrCd: form.gndrCd,
+            // bhdt: form.bhdt,
+            // userCno: form.userCno,
             userEmail: form.userEmail,
-            userCi: 'string'
+            // userCi: 'string'
         }
 
         try {
@@ -218,8 +243,13 @@ export default function SignUpPage() {
                                 />
                             </div>
                             <div className="flex items-center h-10">
-                                <Button type="button" onClick={handleEmailAuth} disabled={isVerified || isSendingEmail}>
-                                    인증
+                                <Button
+                                    type="button"
+                                    onClick={handleEmailAuth}
+                                    disabled={isVerified || isSendingEmail}
+                                    className="w-20"
+                                >
+                                    {emailSent && !isVerified && timer <= 0 ? '재전송' : '인증'}
                                 </Button>
                             </div>
                         </div>
@@ -227,16 +257,19 @@ export default function SignUpPage() {
                         {/* 인증번호 입력 */}
                         {emailSent && !isVerified && (
                             <div className="flex gap-2 items-center">
-                                <div className="flex-1 flex items-center">
+                                <div className="flex-1 flex items-center relative">
                                     <InputField
                                         name="authCode"
                                         placeholder="인증번호 입력"
                                         value={authCode}
                                         onChange={(e) => setAuthCode(e.target.value)}
                                     />
+                                    {timer > 0 && (
+                                        <span className="absolute right-3 text-sm text-gray-400">{formatTimer(timer)}</span>
+                                    )}
                                 </div>
                                 <div className="flex items-center h-10">
-                                    <Button type="button" onClick={handleVerifyAuthCode}>
+                                    <Button type="button" onClick={handleVerifyAuthCode} className="w-20">
                                         확인
                                     </Button>
                                 </div>
